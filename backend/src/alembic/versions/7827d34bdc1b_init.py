@@ -32,6 +32,7 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
+        sa.Column('icon', sa.String(), nullable=True),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("name"),

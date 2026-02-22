@@ -16,11 +16,35 @@ class MigrationUploadResponseSchema(BaseModel):
     revision: str
 
 
-class ProjectResponseSchema(BaseOrmModel):
-    id: int
+# region Projects
+class ProjectCreateSchema(BaseModel):
     name: str
+    icon: str | None
+
+
+class ProjectResponseSchema(BaseOrmModel):
+    id: str
+    name: str
+    icon: str | None
     created_at: dt.datetime
 
+
+class ProjectStatsResponseSchema(BaseOrmModel):
+    id: int
+    name: str
+    icon: str | None
+    created_at: dt.datetime
+    snapshots_count: int
+    table_count: int
+    views_count: int
+    triggers_count: int
+    mat_views_count: int
+
+
+# endregion
+
+
+# region Snapshots
 class SnapshotResponseSchema(BaseOrmModel):
     id: int
     project_id: int
@@ -29,3 +53,25 @@ class SnapshotResponseSchema(BaseOrmModel):
     prev_revision_id: str | None
     schema_data: dict
     diff_data: dict | None
+
+
+class SnapshotTitleResponseSchema(BaseOrmModel):
+    id: int
+    revision_id: str
+    prev_revision_id: str | None
+    created_at: dt.datetime
+
+
+class LatestSnapshotsResponseSchema(BaseOrmModel):
+    id: int
+    revision_id: str
+    project_id: int
+    project_name: str
+
+
+class SnapshotByDateResponseSchema(BaseOrmModel):
+    date: dt.date
+    count: int
+
+
+# endregion

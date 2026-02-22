@@ -15,10 +15,11 @@ class Project(DbModel, IdMixin):
     __tablename__ = "projects"
     __table_args__ = (Index("idx_project_name", "name"),)
 
-    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, unique=True)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    icon: Mapped[str | None] = mapped_column(String)
 
     snapshots = relationship(
         "Snapshot",

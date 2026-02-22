@@ -5,9 +5,11 @@ from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from services.rabbit_service import RabbitService
 from src.core.config import settings
 from src.routes.migration_routes import router as migration_router
+from src.routes.project_routes import router as project_router
+from src.routes.snapshot_routes import router as snapshot_router
+from src.services.rabbit_service import RabbitService
 
 rabbit_service = RabbitService()
 
@@ -25,7 +27,12 @@ async def lifespan(app: FastAPI):
         logger.info("Consumer task cancelled successfully.")
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -35,6 +42,8 @@ app.add_middleware(
 )
 
 app_router = APIRouter(prefix="/api")
-app_router.include_router(migration_router)
+app_router.include_router(migration_router, prefix="/migrations")
+app_router.include_router(project_router, prefix="/projects")
+app_router.include_router(snapshot_router, prefix="/snapshots")
 
 app.include_router(app_router)
