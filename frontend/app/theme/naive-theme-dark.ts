@@ -21,6 +21,8 @@ export const naiveThemeOverrides: GlobalThemeOverrides = {
         titleTextColor: '#737573',
         titleFontWeight: '400',
         titleFontSizeMedium: '12px',
+        colorModal: '#1E2320',
+        borderColorModal: '#1A1E1B',
     },
     Input: {
         color: '#0A110D',
@@ -52,6 +54,13 @@ export const naiveThemeOverrides: GlobalThemeOverrides = {
     },
     Button: {
         textColorPrimary: '#ffffff',
+        textColorQuaternary: '#EAEBEB',
+    
+        textColorHoverQuaternary: '#11af74',
+        colorHoverQuaternary: 'rgba(17, 175, 116, 0.1)',
+        
+        textColorPressedQuaternary: '#11af74',
+        colorPressedQuaternary: 'rgba(17, 175, 116, 0.2)',
     },
     Tabs: {
         tabTextColorActiveLine: '#11af74',
@@ -88,5 +97,11 @@ export const naiveThemeOverrides: GlobalThemeOverrides = {
     Layout: {
         siderColor: '#0A110D',
         color: '#040E07',
+    },
+    Popover: {
+        color: '#1E2320',
+        textColor: '#EAEBEB',
+        border: '1px solid #3B3C3D',
+        borderRadius: '8px',
     },
 }

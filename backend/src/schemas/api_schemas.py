@@ -23,7 +23,7 @@ class ProjectCreateSchema(BaseModel):
 
 
 class ProjectResponseSchema(BaseOrmModel):
-    id: str
+    id: int
     name: str
     icon: str | None
     created_at: dt.datetime
@@ -35,7 +35,7 @@ class ProjectStatsResponseSchema(BaseOrmModel):
     icon: str | None
     created_at: dt.datetime
     snapshots_count: int
-    table_count: int
+    tables_count: int
     views_count: int
     triggers_count: int
     mat_views_count: int

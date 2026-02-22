@@ -19,7 +19,7 @@
     {
       "name": "Snapshotter",
       "path": "snapshotter"
-    },
+    }
   ],
   "settings": {
     "files.exclude": {

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.models import Project, Snapshot
 from src.repositories.project_repository import ProjectRepository
+from src.schemas.api_schemas import LatestSnapshotsResponseSchema
 
 
 class ProjectService:
@@ -38,9 +39,9 @@ class ProjectService:
                 "tables_count": t_count,
                 "views_count": v_count,
                 "triggers_count": tr_count,
-                "mat_views_count": mv_count
+                "mat_views_count": mv_count,
             }
-            for project_obj, snap_count,t_count, v_count, tr_count, mv_count in projects
+            for project_obj, snap_count, t_count, v_count, tr_count, mv_count in projects
         ]
 
     async def get_project_by_name(self, name: str) -> Project | None:
@@ -56,7 +57,16 @@ class ProjectService:
         return await self._repo.get_snapshot_by(**kwargs)
 
     async def get_latest_snapshots(self, limit: int = 10):
-        return await self._repo.get_latest_snapshots(limit=limit)
+        snapshots = await self._repo.get_latest_snapshots(limit=limit)
+        return [
+            LatestSnapshotsResponseSchema(
+                id=s.id,
+                revision_id=s.revision_id,
+                project_id=s.project_id,
+                project_name=s.project.name,
+            )
+            for s in snapshots
+        ]
 
     async def get_snapshot_count_by_date(self):
         return await self._repo.get_snapshot_count_by_date()

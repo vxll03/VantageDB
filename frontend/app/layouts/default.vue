@@ -89,7 +89,7 @@ const topMenuOptions = computed<MenuOption[]>(() => {
       ? projects.value.map((p) => ({
           label: renderLink(p.name, `/projects/${p.id}`),
           key: `proj-${p.id}`,
-          icon: renderIcon('ph:database'),
+          icon: renderIcon(p.icon || 'ph:database'),
         }))
       : [{ label: 'No projects', key: 'empty', disabled: true }];
 

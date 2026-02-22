@@ -42,8 +42,8 @@ app.add_middleware(
 )
 
 app_router = APIRouter(prefix="/api")
-app_router.include_router(migration_router, prefix="/migrations")
-app_router.include_router(project_router, prefix="/projects")
-app_router.include_router(snapshot_router, prefix="/snapshots")
+app_router.include_router(migration_router, prefix="/migrations", tags=['Migration'])
+app_router.include_router(project_router, prefix="/projects", tags=['Project'])
+app_router.include_router(snapshot_router, prefix="/snapshots", tags=['Snapshot'])
 
 app.include_router(app_router)

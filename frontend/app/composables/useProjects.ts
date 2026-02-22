@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/vue-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { apiClient } from '~/utils/apiClient';
 import { ApiProjectsSchema, type Project } from '~/schemas/projects.schema';
 
@@ -9,5 +9,25 @@ export const useProjectsQuery = () => {
       const data = await apiClient('/projects');
       return ApiProjectsSchema.parse(data);
     },
+  });
+};
+
+
+export const useProjectMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (newProject: { name: string; icon: string }) => {
+      return await apiClient('/projects', {
+        method: 'POST',
+        body: newProject
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+    onError: (err) => {
+      console.error('Failed to create project:', err);
+    }
   });
 };

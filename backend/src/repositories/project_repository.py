@@ -47,15 +47,17 @@ class ProjectRepository:
         stmt = (
             select(
                 Project,
-                func.count(Snapshot.id).label("snapshots_count"),
+                func.count(Snapshot.id)
+                    .over(partition_by=Project.id)
+                    .label("snapshots_count"),
                 json_len_fallback("tables"),
                 json_len_fallback("views"),
                 json_len_fallback("triggers"),
                 json_len_fallback("mat_views"),
             )
-            .join(Snapshot, Project.id == Snapshot.project_id)
+            .outerjoin(Snapshot, Project.id == Snapshot.project_id)
             .distinct(Project.id)
-            .order_by(Project.id, Snapshot.id.desc())
+            .order_by(Project.id, Snapshot.id.desc().nulls_last())
         )
 
         result = await self.db.execute(stmt)
@@ -86,18 +88,13 @@ class ProjectRepository:
 
     async def get_latest_snapshots(self, limit: int = 10):
         stmt = (
-            select(
-                Snapshot.id,
-                Snapshot.revision_id,
-                Snapshot.project_id,
-                Project.name.label("project_name"),
-            )
+            select(Snapshot)
             .options(joinedload(Snapshot.project))
             .order_by(Snapshot.id.desc())
             .limit(limit)
         )
         result = await self.db.execute(stmt)
-        return result.mappings().all()
+        return result.scalars().all()
 
     async def get_snapshot_count_by_date(self):
         range_stmt = select(
@@ -143,6 +140,6 @@ class ProjectRepository:
         result = await self.db.execute(stmt)
 
         return [
-            {"date": r.period.date().isoformat(), "count": r.count}
+            {"date": r.period.date(), "count": r.count}
             for r in result.all()
         ]
