@@ -35,7 +35,7 @@ class RabbitSettings(BaseSettings):
 
 class ApplicationSettings(BaseSettings):
     SHARED_MIGRATIONS_DIR: Path = Field(default=Path("/app/migrations_storage"))
-    CORS_ORIGINS: list[str] = Field(default=["localhost:*"])
+    CORS_ORIGINS: list[str] = Field(default=["*"])
 
     rabbit: RabbitSettings = Field(default_factory=RabbitSettings)
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)

@@ -5,6 +5,11 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2025-07-15',
   
+  runtimeConfig: {
+    public: {
+      apiBaseUrl: process.env.API_BASE_URL || 'http://127.0.0.1:8000/api',
+    },
+  },
   
   modules: [
     '@bg-dev/nuxt-naiveui',
@@ -26,7 +31,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api/v1',
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api',
     },
   },
 

@@ -115,7 +115,7 @@
 
 <script setup lang="ts">
 import type { FormInst, FormRules, FormItemRule } from 'naive-ui';
-import { AuthSchema } from '@/schemas/auth/auth.schema';
+import { AuthSchema } from '~/schemas/auth.schema';
 import { useMutation } from '@tanstack/vue-query';
 import { useMessage } from 'naive-ui';
 import { ref } from 'vue';

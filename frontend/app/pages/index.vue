@@ -38,18 +38,64 @@
         </div>
       </template>
       <template #header-extra>
-        <span class="active-count"><b>6</b> Active Projects</span>
+        <span class="active-count"><b>{{ projects?.length || 0 }}</b> Active Projects</span>
       </template>
       
-      <div class="table-placeholder">
-         <div style="height: 1000px; color: #737573;">(Скролл-зона: добавь сюда таблицу)</div>
-      </div>
+      <n-data-table
+        :columns="columns"
+        :data="projects || []"
+        :loading="isLoading"
+        :bordered="false"
+        class="projects-table"
+      />
     </n-card>
     
   </div>
 </template>
 
 <script setup lang="ts">
+import { h, resolveComponent } from 'vue';
+import { useProjectsQuery } from '~/composables/useProjects';
+
+const NuxtLink = resolveComponent('NuxtLink');
+
+const { data: projects, isLoading } = useProjectsQuery();
+
+const columns = [
+  {
+    title: 'ID',
+    key: 'id',
+    width: 80,
+    align: 'center'
+  },
+  {
+    title: 'Project Name',
+    key: 'name',
+    render(row: any) {
+      return h(
+        NuxtLink,
+        { 
+          to: `/projects/${row.id}`,
+          style: 'color: #11af74; text-decoration: none; font-weight: 500;'
+        },
+        { default: () => row.name }
+      );
+    }
+  },
+  {
+    title: 'Created At',
+    key: 'created_at',
+    render(row: any) {
+      return new Date(row.created_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  }
+];
 </script>
 
 <style scoped lang="scss">
@@ -153,5 +199,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.projects-table {
+  --n-th-color: transparent !important;
+  --n-td-color: transparent !important;
+  --n-td-color-hover: rgba(255, 255, 255, 0.03) !important;
+  
+  :deep(.n-data-table-th) {
+    color: $gray;
+    font-weight: normal;
+    border-bottom: 1px solid $light;
+  }
+  
+  :deep(.n-data-table-td) {
+    color: $white;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  }
 }
 </style>

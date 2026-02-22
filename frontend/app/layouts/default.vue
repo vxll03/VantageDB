@@ -14,7 +14,6 @@
         <n-menu
           :options="topMenuOptions"
           :value="activeKey"
-          @update:value="activeKey = $event"
         />
       </div>
 
@@ -22,7 +21,6 @@
         <n-menu
           :options="bottomMenuOptions"
           :value="activeKey"
-          @update:value="activeKey = $event"
         />
         
         <div class="user-profile">
@@ -56,36 +54,62 @@
 </template>
 
 <script setup lang="ts">
-import { h, ref } from 'vue';
 import type { MenuOption } from 'naive-ui';
 import { Icon } from '#components';
+import { useProjectsQuery } from '@/composables/useProjects';
+
+const route = useRoute();
+const NuxtLink = resolveComponent('NuxtLink');
 
 const renderIcon = (iconName: string) => {
   return () => h(Icon, { name: iconName, size: '18' });
 };
 
-const activeKey = ref('dashboard');
+const renderLink = (label: string, to: string) => {
+  return () => h(NuxtLink, { to }, { default: () => label });
+};
 
-const topMenuOptions: MenuOption[] = [
-  {
-    type: 'group',
-    label: 'PLATFORM',
-    key: 'platform-group',
-    children: [
-      { label: 'Dashboard', key: 'dashboard', icon: renderIcon('ph:house-line') }
-    ]
-  },
-  {
-    type: 'group',
-    label: 'PROJECTS',
-    key: 'projects-group',
-    children: [
-      { label: 'Project 1', key: 'proj-1', icon: renderIcon('ph:database') },
-      { label: 'Project 231', key: 'proj-231', icon: renderIcon('ph:database') },
-      { label: 'My Test Project', key: 'proj-test', icon: renderIcon('ph:database') },
-    ]
+const activeKey = computed(() => {
+  if (route.path === '/') return 'dashboard';
+  
+  if (route.path.startsWith('/projects/')) {
+    const projectId = route.path.split('/')[2]; 
+    return `proj-${projectId}`;
   }
-];
+  
+  return '';
+});
+
+const { data: projects, isLoading } = useProjectsQuery();
+
+const topMenuOptions = computed<MenuOption[]>(() => {
+  const projectChildren: MenuOption[] = isLoading.value
+    ? [{ label: 'Loading...', key: 'loading', disabled: true }]
+    : projects.value?.length
+      ? projects.value.map((p) => ({
+          label: renderLink(p.name, `/projects/${p.id}`),
+          key: `proj-${p.id}`,
+          icon: renderIcon('ph:database'),
+        }))
+      : [{ label: 'No projects', key: 'empty', disabled: true }];
+
+  return [
+    {
+      type: 'group',
+      label: 'PLATFORM',
+      key: 'platform-group',
+      children: [
+        { label: renderLink('Dashboard', '/'), key: 'dashboard', icon: renderIcon('ph:house-line') }
+      ]
+    },
+    {
+      type: 'group',
+      label: 'PROJECTS',
+      key: 'projects-group',
+      children: projectChildren
+    }
+  ];
+});
 
 const bottomMenuOptions: MenuOption[] = [
   {
@@ -137,6 +161,7 @@ const handleAccountAction = (key: string) => {
   font-weight: bold;
   color: $accent;
   flex-shrink: 0;
+  user-select: none;
 }
 
 .top-menu {
