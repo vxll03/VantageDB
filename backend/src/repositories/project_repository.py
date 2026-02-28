@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import timedelta
 from typing import Sequence
 
@@ -102,7 +103,38 @@ class ProjectRepository:
     async def get_snapshots_by_project(self, project_id: int) -> Sequence[Snapshot]:
         stmt = select(Snapshot).where(Snapshot.project_id == project_id)
         result = await self.db.execute(stmt)
-        return result.scalars().all()
+        snapshots = result.scalars().all()
+        if not snapshots:
+            return []
+
+        children_map = defaultdict(list)
+        for s in snapshots:
+            children_map[s.prev_revision_id].append(s)
+
+        known_rev_ids = {s.revision_id for s in snapshots}
+        roots = [s for s in snapshots if s.prev_revision_id not in known_rev_ids]
+
+        roots.sort(key=lambda x: x.created_at)
+
+        sorted_snapshots = []
+        visited = set()
+
+        def traverse(node: Snapshot):
+            if node.revision_id in visited:
+                return
+            sorted_snapshots.append(node)
+            visited.add(node.revision_id)
+
+            children = sorted(
+                children_map.get(node.revision_id, []), key=lambda x: x.created_at
+            )
+            for child in children:
+                traverse(child)
+
+        for root in roots:
+            traverse(root)
+
+        return sorted_snapshots
 
     async def get_snapshot_by(self, **kwargs) -> Snapshot | None:
         """Get Snapshot instance from db by any fields. \n

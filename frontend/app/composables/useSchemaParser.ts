@@ -9,10 +9,18 @@ export interface ColumnNodeData {
   changeDetails: string[];
 }
 
+export interface TriggerNodeData {
+  name: string;
+  status: 'normal' | 'added' | 'removed' | 'changed';
+  definition?: string;
+  oldDefinition?: string;
+}
+
 export interface TableNodeData {
   label: string;
   status: 'normal' | 'added' | 'removed' | 'changed';
   columns: ColumnNodeData[];
+  triggers: TriggerNodeData[];
 }
 
 export interface ViewNodeData {
@@ -24,32 +32,72 @@ export interface ViewNodeData {
 }
 
 export const useSchemaParser = () => {
+  const isNameInList = (name: string, list: any[]): boolean => {
+    if (!Array.isArray(list)) return false;
+    return list.some((item) => (typeof item === 'string' ? item : item?.name) === name);
+  };
+
+  const extractDiffSafe = (diffObj: any) => {
+    const safe = diffObj || {};
+    return {
+      added: Array.isArray(safe.added) ? safe.added : [],
+      removed: Array.isArray(safe.removed) ? safe.removed : [],
+      changed: typeof safe.changed === 'object' && safe.changed !== null ? safe.changed : {},
+    };
+  };
+
+  const extractNames = (arr: unknown[] | undefined): string[] => {
+    if (!Array.isArray(arr)) return [];
+    return arr.map((item) => (typeof item === 'string' ? item : (item as any)?.name || ''));
+  };
+
   const parseSchemaToFlow = (snapshot: SnapshotDetails | null | undefined) => {
     const nodes: Node<TableNodeData>[] = [];
     const edges: Edge[] = [];
 
-    if (!snapshot || !snapshot.schema_data) {
-      return { nodes, edges };
-    }
+    if (!snapshot || !snapshot.schema_data) return { nodes, edges };
 
-    const tables = snapshot.schema_data.tables;
+    const tables = snapshot.schema_data.tables || [];
     const diff = snapshot.diff_data || { added_tables: [], removed_tables: [], changed_tables: {} };
 
-    const extractNames = (arr: unknown[] | undefined): string[] => {
-      if (!Array.isArray(arr)) return [];
-      return arr.map((item) => (typeof item === 'string' ? item : item?.name || ''));
-    };
+    const triggersList = snapshot.triggers_data?.triggers || [];
+    const trgDiff = extractDiffSafe(snapshot.triggers_diff_data);
+    const triggersByTable: Record<string, TriggerNodeData[]> = {};
+
+    triggersList.forEach((t: any) => {
+      if (!t.table) return;
+      if (!triggersByTable[t.table]) triggersByTable[t.table] = [];
+
+      const trgName = t.name;
+      let status: TriggerNodeData['status'] = 'normal';
+      let oldDef: string | undefined = t.definition;
+
+      if (isNameInList(trgName, trgDiff.added)) {
+        status = 'added';
+        oldDef = undefined;
+      } else if (trgDiff.changed[trgName]) {
+        status = 'changed';
+        oldDef = trgDiff.changed[trgName].old;
+      }
+
+      triggersByTable[t.table].push({
+        name: trgName,
+        status,
+        definition: t.definition,
+        oldDefinition: oldDef,
+      });
+    });
 
     tables.forEach((table) => {
       let tableStatus: TableNodeData['status'] = 'normal';
-      if (diff.added_tables?.includes(table.name)) tableStatus = 'added';
+      if (isNameInList(table.name, diff.added_tables || [])) tableStatus = 'added';
       else if (diff.changed_tables?.[table.name]) tableStatus = 'changed';
 
       const changes = diff.changed_tables?.[table.name] || {};
       const addedColNames = extractNames(changes.added_columns);
       const removedColNames = extractNames(changes.removed_columns);
 
-      const processedColumns: ColumnNodeData[] = table.columns.map((col) => {
+      const processedColumns: ColumnNodeData[] = (table.columns || []).map((col) => {
         let colStatus: ColumnNodeData['status'] = 'normal';
         const changeDetails: string[] = [];
 
@@ -59,13 +107,11 @@ export const useSchemaParser = () => {
           colStatus = 'changed';
           const colDiff = changes.changed_columns[col.name];
 
-          if (colDiff?.type) {
-            changeDetails.push(`Type: ${colDiff.type.old} → ${colDiff.type.new}`);
-          }
+          if (colDiff?.type) changeDetails.push(`Type: ${colDiff.type.old} → ${colDiff.type.new}`);
           if (colDiff?.nullable !== undefined) {
-            const oldNull = colDiff.nullable.old ? 'NULL' : 'NOT NULL';
-            const newNull = colDiff.nullable.new ? 'NULL' : 'NOT NULL';
-            changeDetails.push(`Nullable: ${oldNull} → ${newNull}`);
+            changeDetails.push(
+              `Nullable: ${colDiff.nullable.old ? 'NULL' : 'NOT NULL'} → ${colDiff.nullable.new ? 'NULL' : 'NOT NULL'}`,
+            );
           }
         }
         return { ...col, status: colStatus, changeDetails };
@@ -80,18 +126,24 @@ export const useSchemaParser = () => {
         });
       });
 
+      const tableTriggers = triggersByTable[table.name] || [];
+
       nodes.push({
         id: `table-${table.name}`,
         type: 'customTable',
         position: { x: 0, y: 0 },
-        data: { label: table.name, status: tableStatus, columns: processedColumns },
+        data: {
+          label: table.name,
+          status: tableStatus,
+          columns: processedColumns,
+          triggers: tableTriggers,
+        },
       });
 
       if (table.foreign_keys && table.foreign_keys.length > 0) {
         table.foreign_keys.forEach((fk) => {
           fk.constrained_columns.forEach((sourceCol, index) => {
             const targetCol = fk.referred_columns[index];
-
             edges.push({
               id: `fk-${table.name}-${sourceCol}-${fk.referred_table}-${targetCol}`,
               source: `table-${table.name}`,
@@ -108,23 +160,23 @@ export const useSchemaParser = () => {
       }
     });
 
-    if (diff.removed_tables) {
-      diff.removed_tables.forEach((tableName: string) => {
-        nodes.push({
-          id: `table-${tableName}`,
-          type: 'customTable',
-          position: { x: 0, y: 0 },
-          data: { label: tableName, status: 'removed', columns: [] },
-        });
+    const removedTables = extractNames(diff.removed_tables);
+    removedTables.forEach((tableName: string) => {
+      nodes.push({
+        id: `table-${tableName}`,
+        type: 'customTable',
+        position: { x: 0, y: 0 },
+        data: { label: tableName, status: 'removed', columns: [], triggers: [] },
       });
-    }
+    });
 
     const g = new dagre.graphlib.Graph();
     g.setDefaultEdgeLabel(() => ({}));
     g.setGraph({ rankdir: 'LR', ranksep: 250, nodesep: 60 });
 
     nodes.forEach((node) => {
-      const height = (node.data.columns?.length || 0) * 36 + 40;
+      let height = 40 + (node.data.columns?.length || 0) * 35;
+      if (node.data.triggers?.length) height += 28 + node.data.triggers.length * 35;
       g.setNode(node.id, { width: 250, height });
     });
 
@@ -133,7 +185,8 @@ export const useSchemaParser = () => {
 
     nodes.forEach((node) => {
       const dagreNode = g.node(node.id);
-      const height = (node.data.columns?.length || 0) * 36 + 40;
+      let height = 40 + (node.data.columns?.length || 0) * 35;
+      if (node.data.triggers?.length) height += 28 + node.data.triggers.length * 35;
       node.position = { x: dagreNode.x - 125, y: dagreNode.y - height / 2 };
     });
 
@@ -146,57 +199,60 @@ export const useSchemaParser = () => {
 
     if (!snapshot || !snapshot.views_data) return { nodes, edges };
 
-    const views = snapshot.views_data.views || [];
-    const matViews = snapshot.views_data.materialized_views || [];
-    const diff = snapshot.views_diff_data || {
-      views: { added: [], removed: [], changed: {} },
-      materialized_views: { added: [], removed: [], changed: {} },
+    const views = Array.isArray(snapshot.views_data.views) ? snapshot.views_data.views : [];
+    const matViews = Array.isArray(snapshot.views_data.materialized_views)
+      ? snapshot.views_data.materialized_views
+      : [];
+
+    const diffData = snapshot.views_diff_data || {};
+    const isNested = 'views' in diffData || 'materialized_views' in diffData;
+
+    const getDiffFor = (key: 'views' | 'materialized_views') => {
+      if (isNested) return extractDiffSafe(diffData[key]);
+      return extractDiffSafe(diffData);
     };
 
-    const processViewList = (list: any[], diffData: any, type: 'view' | 'materialized_view') => {
-      const safeDiff = diffData || { added: [], removed: [], changed: {} };
-      const addedList = safeDiff.added || [];
-      const changedDict = safeDiff.changed || {};
-      const removedList = safeDiff.removed || [];
-
+    const processViewList = (
+      list: any[],
+      diff: ReturnType<typeof extractDiffSafe>,
+      type: 'view' | 'materialized_view',
+    ) => {
       list.forEach((v) => {
+        const viewName = v.name;
         let status: ViewNodeData['status'] = 'normal';
-        let oldDefinition: string | undefined = undefined;
+        let oldDefinition: string | undefined = v.definition;
 
-        if (addedList.find((a: any) => a.name === v.name)) {
+        if (isNameInList(viewName, diff.added)) {
           status = 'added';
-        } else if (changedDict[v.name]) {
+          oldDefinition = undefined;
+        } else if (diff.changed[viewName]) {
           status = 'changed';
-          oldDefinition = changedDict[v.name].old;
+          oldDefinition = diff.changed[viewName].old;
         }
 
         nodes.push({
-          id: `view-${v.name}`,
+          id: `view-${viewName}`,
           type: 'customView',
           position: { x: 0, y: 0 },
-          data: {
-            label: v.name,
-            status,
-            type,
-            definition: v.definition,
-            oldDefinition,
-          },
+          data: { label: viewName, status, type, definition: v.definition, oldDefinition },
         });
       });
 
-      // 3. Обработка удаленных элементов
-      removedList.forEach((name: string) => {
-        nodes.push({
-          id: `view-${name}`,
-          type: 'customView',
-          position: { x: 0, y: 0 },
-          data: { label: name, status: 'removed', type },
-        });
+      diff.removed.forEach((r: any) => {
+        const name = typeof r === 'string' ? r : r?.name;
+        if (name && !nodes.some((n) => n.id === `view-${name}`)) {
+          nodes.push({
+            id: `view-${name}`,
+            type: 'customView',
+            position: { x: 0, y: 0 },
+            data: { label: name, status: 'removed', type },
+          });
+        }
       });
     };
 
-    processViewList(views, diff.views, 'view');
-    processViewList(matViews, diff.materialized_views, 'materialized_view');
+    processViewList(views, getDiffFor('views'), 'view');
+    processViewList(matViews, getDiffFor('materialized_views'), 'materialized_view');
 
     const g = new dagre.graphlib.Graph();
     g.setDefaultEdgeLabel(() => ({}));

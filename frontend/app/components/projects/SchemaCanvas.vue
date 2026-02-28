@@ -68,6 +68,42 @@
                 </div>
               </n-tooltip>
             </div>
+            <div v-if="data.triggers?.length" class="triggers-section">
+              <div class="triggers-header">
+                <Icon name="ph:lightning-duotone" class="header-icon" />
+                Triggers
+              </div>
+              <div class="triggers-list">
+                <n-popover
+                  v-for="trg in data.triggers"
+                  :key="trg.name"
+                  trigger="click"
+                  placement="right"
+                  scrollable
+                  style="max-width: 500px; max-height: 400px"
+                >
+                  <template #trigger>
+                    <div :class="['trigger-row', `status-${trg.status}`]">
+                      <Icon name="ph:lightning-fill" class="trg-icon" />
+                      <span class="trg-name">{{ trg.name }}</span>
+                    </div>
+                  </template>
+
+                  <div class="diff-container">
+                    <div
+                      v-for="(line, idx) in generateSqlDiff(trg.oldDefinition, trg.definition)"
+                      :key="idx"
+                      :class="['diff-line', `line-${line.type}`]"
+                    >
+                      {{ line.content }}
+                    </div>
+                    <div v-if="!trg.definition && !trg.oldDefinition" class="diff-empty">
+                      No definition available
+                    </div>
+                  </div>
+                </n-popover>
+              </div>
+            </div>
           </n-card>
         </template>
 
@@ -465,7 +501,8 @@
     font-family: var(--n-font-family-mono); // Моноширинный шрифт Naive UI
     font-size: 0.8rem;
     line-height: 1.4;
-    white-space: pre; // Сохраняем пробелы и переносы
+    white-space: pre-wrap; // Сохраняем пробелы и переносы
+    word-break: break-word;
     background-color: #111;
     padding: 8px 0;
     border-radius: 4px;
@@ -480,7 +517,6 @@
       &.line-removed {
         background-color: rgba(208, 48, 80, 0.15); // Прозрачный красный
         color: #ea607e;
-        text-decoration: line-through;
       }
       &.line-common {
         color: #a0a0a0;
@@ -491,6 +527,67 @@
       padding: 0 12px;
       color: #666;
       font-style: italic;
+    }
+  }
+
+  .triggers-section {
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+    background-color: rgba(0, 0, 0, 0.15);
+  }
+
+  .triggers-header {
+    padding: 6px 12px;
+    font-size: 0.7rem;
+    color: #a0a0a0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+
+    .header-icon {
+      color: #e2a829;
+      font-size: 0.9rem;
+    }
+  }
+
+  .trigger-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .trg-icon {
+      color: #e2a829;
+      font-size: 0.85rem;
+    }
+
+    .trg-name {
+      color: #eaebeb;
+      font-size: 0.75rem;
+      font-family: var(--n-font-family-mono);
+    }
+
+    &.status-added {
+      background-color: rgba(17, 175, 116, 0.15);
+    }
+    &.status-removed {
+      background-color: rgba(208, 48, 80, 0.15);
+      opacity: 0.6;
+    }
+    &.status-changed {
+      background-color: rgba(32, 128, 240, 0.15);
     }
   }
 </style>
