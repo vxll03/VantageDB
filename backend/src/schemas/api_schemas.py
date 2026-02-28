@@ -47,7 +47,7 @@ class ProjectStatsResponseSchema(BaseOrmModel):
     views_count: int
     triggers_count: int
     mat_views_count: int
-
+    functions_count: int
 
 # endregion
 
@@ -61,7 +61,12 @@ class SnapshotResponseSchema(BaseOrmModel):
     prev_revision_id: str | None
     schema_data: dict
     diff_data: dict | None
-
+    views_data: dict | None
+    views_diff_data: dict | None
+    functions_data: dict | None
+    functions_diff_data: dict | None
+    triggers_data: dict | None
+    triggers_diff_data: dict | None
 
 class SnapshotTitleResponseSchema(BaseOrmModel):
     id: int

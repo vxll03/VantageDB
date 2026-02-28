@@ -37,6 +37,12 @@ class ProjectRepository:
         rev_id: str,
         project_id: int,
         schema: dict,
+        views,
+        functions,
+        triggers,
+        views_diff,
+        functions_diff,
+        triggers_diff,
         prev_rev_id: str | None = None,
         diff: dict | None = None,
     ) -> None:
@@ -46,15 +52,19 @@ class ProjectRepository:
             prev_revision_id=prev_rev_id,
             schema_data=schema,
             diff_data=diff,
+            views_data=views,
+            views_diff_data=views_diff,
+            functions_data=functions,
+            functions_diff_data=functions_diff,
+            triggers_data=triggers,
+            triggers_diff_data=triggers_diff,
         )
         self.db.add(snap)
         await self.db.commit()
 
     async def get_projects_with_stats(self):
-        def json_len_fallback(key: str):
-            return func.coalesce(
-                func.jsonb_array_length(Snapshot.schema_data[key]), 0
-            ).label(f"{key}_count")
+        def json_len_fallback(column, key: str, label: str):
+            return func.coalesce(func.jsonb_array_length(column[key]), 0).label(label)
 
         stmt = (
             select(
@@ -62,10 +72,15 @@ class ProjectRepository:
                 func.count(Snapshot.id)
                 .over(partition_by=Project.id)
                 .label("snapshots_count"),
-                json_len_fallback("tables"),
-                json_len_fallback("views"),
-                json_len_fallback("triggers"),
-                json_len_fallback("mat_views"),
+                json_len_fallback(Snapshot.schema_data, "tables", "tables_count"),
+                json_len_fallback(Snapshot.views_data, "views", "views_count"),
+                json_len_fallback(
+                    Snapshot.views_data, "materialized_views", "mat_views_count"
+                ),
+                json_len_fallback(Snapshot.triggers_data, "triggers", "triggers_count"),
+                json_len_fallback(
+                    Snapshot.functions_data, "functions", "functions_count"
+                ),
             )
             .outerjoin(Snapshot, Project.id == Snapshot.project_id)
             .distinct(Project.id)

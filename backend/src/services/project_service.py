@@ -33,6 +33,12 @@ class ProjectService:
         rev_id: str,
         project_id: int,
         schema: dict,
+        views: dict | None = None,
+        functions: dict | None = None,
+        triggers: dict | None = None,
+        views_diff: dict | None = None,
+        functions_diff: dict | None = None,
+        triggers_diff: dict | None = None,
         prev_rev_id: str | None = None,
         diff: dict | None = None,
     ):
@@ -42,6 +48,12 @@ class ProjectService:
             schema=schema,
             prev_rev_id=prev_rev_id,
             diff=diff,
+            views=views,
+            functions=functions,
+            triggers=triggers,
+            views_diff=views_diff,
+            functions_diff=functions_diff,
+            triggers_diff=triggers_diff,
         )
 
     async def get_projects_with_stats(self):
@@ -54,8 +66,9 @@ class ProjectService:
                 "views_count": v_count,
                 "triggers_count": tr_count,
                 "mat_views_count": mv_count,
+                "functions_count": func_count,
             }
-            for project_obj, snap_count, t_count, v_count, tr_count, mv_count in projects
+            for project_obj, snap_count, t_count, v_count, mv_count, tr_count, func_count in projects
         ]
 
     async def get_project_by_name(self, name: str) -> Project | None:

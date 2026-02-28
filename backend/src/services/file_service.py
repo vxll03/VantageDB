@@ -1,5 +1,4 @@
 import json
-import os
 import re
 import shutil
 from pathlib import Path
@@ -89,25 +88,45 @@ class FileService:
             logger.error(f"Project not found by name: {message.project}")
             return
 
-        project_dir = settings.SHARED_MIGRATIONS_DIR / project.name / "output"
-        schema = project_dir / f"{message.revision_id}_schema.json"
-        diff = project_dir / f"{message.revision_id}_diff.json"
+        out_dir = settings.SHARED_MIGRATIONS_DIR / project.name / "output"
+        rev = message.revision_id
 
-        schema_data, diff_data = None, None
-        with open(schema, "r", encoding="utf-8") as f:
-            schema_data = json.load(f)
-        if diff.exists():
-            with open(diff, "r", encoding="utf-8") as f:
-                diff_data = json.load(f)
+        schema_data = self._load_and_clean(out_dir / f"{rev}_schema.json")
+        if not schema_data:
+            return
+
+        views_data = self._load_and_clean(out_dir / f"{rev}_views.json")
+        funcs_data = self._load_and_clean(out_dir / f"{rev}_functions.json")
+        triggers_data = self._load_and_clean(out_dir / f"{rev}_triggers.json")
+
+        schema_diff = self._load_and_clean(out_dir / f"{rev}_diff.json")
+        views_diff = self._load_and_clean(out_dir / f"{rev}_views_diff.json")
+        funcs_diff = self._load_and_clean(out_dir / f"{rev}_functions_diff.json")
+        triggers_diff = self._load_and_clean(out_dir / f"{rev}_triggers_diff.json")
 
         await self.project_srv.create_snapshot(
             project_id=project.id,
-            rev_id=message.revision_id,
+            rev_id=rev,
             prev_rev_id=message.prev_revision_id,
             schema=schema_data,
-            diff=diff_data,
+            views=views_data,
+            functions=funcs_data,
+            triggers=triggers_data,
+            diff=schema_diff,
+            views_diff=views_diff,
+            functions_diff=funcs_diff,
+            triggers_diff=triggers_diff,
         )
 
-        os.remove(schema)
-        if diff.exists():
-            os.remove(diff)
+    def _load_and_clean(self, filepath: Path) -> dict | None:
+        if not filepath.exists():
+            return None
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            filepath.unlink()
+            return data
+        except Exception as e:
+            logger.error(f"Failed to process file {filepath.name}: {e}")
+            return None

@@ -35,11 +35,20 @@ class Snapshot(DbModel, IdMixin):
     )
 
     # Example: "a18e39ae"
-    revision_id: Mapped[str] = mapped_column(String, nullable=False)
+    revision_id: Mapped[str] = mapped_column(String)
     prev_revision_id: Mapped[str | None] = mapped_column(String)
 
-    schema_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    schema_data: Mapped[dict] = mapped_column(JSONB)
     diff_data: Mapped[dict | None] = mapped_column(JSONB)
+
+    views_data: Mapped[dict | None] = mapped_column(JSONB)
+    views_diff_data: Mapped[dict | None] = mapped_column(JSONB)
+
+    functions_data: Mapped[dict | None] = mapped_column(JSONB)
+    functions_diff_data: Mapped[dict | None] = mapped_column(JSONB)
+
+    triggers_data: Mapped[dict | None] = mapped_column(JSONB)
+    triggers_diff_data: Mapped[dict | None] = mapped_column(JSONB)
 
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
