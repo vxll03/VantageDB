@@ -78,7 +78,7 @@
               y2: 1,
               colorStops: [
                 { offset: 0, color: ACCENT_DARK },
-                { offset: 1, color: BLACK },
+                { offset: 1, color: DARK },
               ],
             },
           },

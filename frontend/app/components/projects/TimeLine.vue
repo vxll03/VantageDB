@@ -9,10 +9,12 @@
             :class="['timeline-item', { active: revisionId === snap.id }]"
             @click="selectRevision(snap.id)"
           >
-            <div class="label">{{ snap.revision_id.slice(0, 12) }}{{ snap.revision_id.length > 12 ? '...' : '' }}</div>
+            <div class="label">
+              {{ snap.revision_id.slice(0, 12) }}{{ snap.revision_id.length > 12 ? '...' : '' }}
+            </div>
             <div class="dot-wrapper">
-              <div class="dot"></div>
-              <div v-if="index !== snapshots.length - 1" class="line"></div>
+              <div class="dot" />
+              <div v-if="index !== (snapshots?.length ?? 0) - 1" class="line" />
             </div>
             <div class="date">{{ formatDateTime(snap.created_at) }}</div>
           </div>
@@ -56,7 +58,7 @@
   };
 
   watch(snapshots, (newSnaps) => {
-    if (newSnaps && newSnaps.length > 0 && !revisionId.value) {
+    if (newSnaps?.length && !revisionId.value) {
       revisionId.value = newSnaps[0].id;
       emit('selectRevision');
     }

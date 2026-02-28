@@ -11,7 +11,10 @@ export const ProjectSchema = z.object({
   triggers_count: z.number(),
   views_count: z.number(),
   mat_views_count: z.number(),
+  functions_count: z.number(),
 });
 
 export const ApiProjectsSchema = z.array(ProjectSchema);
 export type Project = z.infer<typeof ProjectSchema>;
+
+

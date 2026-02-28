@@ -1,6 +1,11 @@
 import { useQuery } from '@tanstack/vue-query';
 import { apiClient } from '~/utils/apiClient';
-import { LatestSnapshotResponseSchema, type LatestSnapshot } from '~/schemas/snapshots.schema';
+import {
+  LatestSnapshotResponseSchema,
+  TimelineSnapshotResponseSchema,
+  SnapshotDetailsSchema,
+} from '~/schemas/snapshots.schema';
+import type { LatestSnapshot, SnapshotDetails, TimeLineSnapshot } from '~/schemas/snapshots.schema';
 
 export const useLatestSnapshotsQuery = (limit: number = 10) => {
   return useQuery({
@@ -15,7 +20,10 @@ export const useLatestSnapshotsQuery = (limit: number = 10) => {
 export const useSnapshotTimelineQuery = (projectId: number) => {
   return useQuery({
     queryKey: ['snapshots', projectId],
-    queryFn: async () => await apiClient(`/snapshots/${projectId}`),
+    queryFn: async (): Promise<TimeLineSnapshot[]> => {
+      const data = await apiClient(`/snapshots/${projectId}`);
+      return TimelineSnapshotResponseSchema.parse(data);
+    },
   });
 };
 
@@ -25,7 +33,10 @@ export const useSnapshotDetailsQuery = (
 ) => {
   return useQuery({
     queryKey: ['snapshot-details', projectId, selectedRevision],
-    queryFn: async () => await apiClient(`/snapshots/${projectId}/${selectedRevision.value}`),
+    queryFn: async (): Promise<SnapshotDetails> => {
+      const data = await apiClient(`/snapshots/${projectId}/${selectedRevision.value}`);
+      return SnapshotDetailsSchema.parse(data);
+    },
     enabled: computed(() => !!selectedRevision.value),
   });
 };

@@ -58,6 +58,7 @@
             <span class="info-text">{{ project.views_count }} views</span>
             <span class="info-text">{{ project.mat_views_count }} mat views</span>
             <span class="info-text">{{ project.triggers_count }} triggers</span>
+            <span class="info-text">{{ project.functions_count }} functions</span>
             <span class="info-date">Created {{ formatDate(project.created_at) }}</span>
           </div>
         </div>

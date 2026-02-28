@@ -10,7 +10,7 @@
         fit-view-on-init
         class="db-canvas"
       >
-        <Background :pattern-color="LIGHT" :gap="35" :size="2" />
+        <Background :pattern-color="LIGHT" :gap="35" :size="3" />
         <template #node-customTable="{ data }">
           <n-card
             :class="['table-node', `status-${data.status}`]"
@@ -71,6 +71,55 @@
           </n-card>
         </template>
 
+        <template #node-customView="{ data }">
+          <n-card :class="['view-node', `status-${data.status}`]" size="small" :bordered="true">
+            <template #header>
+              <div class="view-header">
+                <Icon
+                  :name="
+                    data.type === 'materialized_view' ? 'ph:database-duotone' : 'ph:eye-duotone'
+                  "
+                />
+                <span>{{ data.label }}</span>
+              </div>
+            </template>
+            <div v-if="data.status === 'removed'" class="removed-placeholder">View Dropped</div>
+
+            <div v-else class="view-content">
+              <n-popover
+                trigger="click"
+                placement="bottom"
+                scrollable
+                style="max-width: 500px; max-height: 400px"
+              >
+                <template #trigger>
+                  <span class="sql-badge">View SQL Definition</span>
+                </template>
+
+                <div class="diff-container">
+                  <div
+                    v-for="(line, idx) in generateSqlDiff(data.oldDefinition, data.definition)"
+                    :key="idx"
+                    :class="['diff-line', `line-${line.type}`]"
+                  >
+                    {{ line.content }}
+                  </div>
+                  <div v-if="!data.definition && !data.oldDefinition" class="diff-empty">
+                    No definition available
+                  </div>
+                </div>
+              </n-popover>
+            </div>
+          </n-card>
+        </template>
+
+        <Panel v-if="canvasMode === 'views'" position="top-left" class="top-panel">
+          <n-button strong secondary type="primary" @click="canvasMode = 'tables'">
+            <template #icon><Icon name="ph:arrow-left-bold" /></template>
+            Back to Tables
+          </n-button>
+        </Panel>
+
         <Panel position="bottom-right" class="controls-panel">
           <div class="panel-layout">
             <n-button-group vertical class="canvas-controls">
@@ -85,7 +134,11 @@
 
               <n-tooltip placement="left" trigger="hover">
                 <template #trigger>
-                  <n-button quaternary>
+                  <n-button
+                    :type="canvasMode === 'views' ? 'primary' : 'default'"
+                    quaternary
+                    @click="canvasMode = 'views'"
+                  >
                     <template #icon><Icon name="ph:eye" /></template>
                   </n-button>
                 </template>
@@ -121,39 +174,47 @@
 </template>
 
 <script setup lang="ts">
+  import { generateSqlDiff, type DiffLine } from '~/utils/diffFormatter';
   import '@vue-flow/core/dist/style.css';
   import '@vue-flow/core/dist/theme-default.css';
-  import { VueFlow, Panel, useVueFlow, Handle, Position } from '@vue-flow/core';
+  import {
+    VueFlow,
+    Panel,
+    useVueFlow,
+    Handle,
+    Position,
+    type Node,
+    type Edge,
+  } from '@vue-flow/core';
   import { Background } from '@vue-flow/background';
 
-  const { parseSchemaToFlow } = useSchemaParser();
+  const { parseSchemaToFlow, parseViewsToFlow } = useSchemaParser();
   const { zoomIn, zoomOut, fitView, onNodeDrag } = useVueFlow();
 
-  const nodes = defineModel<any[]>('nodes');
-  const edges = defineModel<any[]>('edges');
+  const canvasMode = ref<'tables' | 'views'>('tables');
+
+  const nodes = defineModel<Node<TableNodeData>[]>('nodes', { default: () => [] });
+  const edges = defineModel<Edge[]>('edges', { default: () => [] });
   const revisionId = defineModel<number | null>('revisionId');
 
   const route = useRoute();
   const projectId = route.params.id as string;
+
   const { data: currentSchemaData, isLoading: isLoadingDetails } = useSnapshotDetailsQuery(
     Number.parseInt(projectId),
     revisionId,
   );
 
-  watch(currentSchemaData, (newData) => {
+  watch([currentSchemaData, canvasMode], ([newData, mode]) => {
     if (newData) {
-      const payloadForParser = {
-        ...newData.schema_data,
-        diff_data: newData.diff_data || {},
-      };
-
       try {
-        const flowData = parseSchemaToFlow(payloadForParser);
+        const flowData = mode === 'tables' ? parseSchemaToFlow(newData) : parseViewsToFlow(newData);
+
         nodes.value = flowData.nodes;
         edges.value = flowData.edges;
 
         setTimeout(() => {
-          updateHandles();
+          if (mode === 'tables') updateHandles();
           fitView();
         }, 50);
       } catch (e) {
@@ -317,5 +378,119 @@
   .canvas-controls {
     border: 2px solid $medium !important;
     border-radius: 8px;
+  }
+
+  .view-node {
+    width: 300px;
+    background-color: #1e2320;
+    border: 1px solid #3b3c3d;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+
+    :deep(.n-card-header) {
+      padding: 12px;
+      background-color: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid #3b3c3d;
+    }
+
+    .view-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+      color: #eaebeb;
+      font-weight: 600;
+    }
+
+    .view-content {
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+
+      .sql-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        color: #a0a0a0;
+      }
+    }
+
+    &.status-added {
+      border-color: rgba(17, 175, 116, 0.5);
+      box-shadow: 0 0 15px rgba(17, 175, 116, 0.1);
+    }
+    &.status-removed {
+      border-color: rgba(208, 48, 80, 0.5);
+      opacity: 0.7;
+      .view-header span {
+        text-decoration: line-through;
+        color: #d03050;
+      }
+    }
+    &.status-changed {
+      border-color: rgba(32, 128, 240, 0.4);
+    }
+  }
+
+  .top-panel {
+    margin: 16px;
+  }
+
+  .view-content {
+    padding: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    .sql-badge {
+      font-size: 0.75rem;
+      padding: 6px 12px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #eaebeb;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+    }
+  }
+
+  .diff-container {
+    font-family: var(--n-font-family-mono); // Моноширинный шрифт Naive UI
+    font-size: 0.8rem;
+    line-height: 1.4;
+    white-space: pre; // Сохраняем пробелы и переносы
+    background-color: #111;
+    padding: 8px 0;
+    border-radius: 4px;
+
+    .diff-line {
+      padding: 0 12px;
+
+      &.line-added {
+        background-color: rgba(17, 175, 116, 0.15); // Прозрачный зеленый
+        color: #1fd08c;
+      }
+      &.line-removed {
+        background-color: rgba(208, 48, 80, 0.15); // Прозрачный красный
+        color: #ea607e;
+        text-decoration: line-through;
+      }
+      &.line-common {
+        color: #a0a0a0;
+      }
+    }
+
+    .diff-empty {
+      padding: 0 12px;
+      color: #666;
+      font-style: italic;
+    }
   }
 </style>

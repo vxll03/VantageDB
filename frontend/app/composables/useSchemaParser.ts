@@ -1,59 +1,77 @@
 import dagre from 'dagre';
-import { ApiSnapshotSchema } from '~/schemas/migrations.schema';
+import type { Node, Edge } from '@vue-flow/core';
+import type { SnapshotDetails } from '~/schemas/snapshots.schema';
+
+export interface ColumnNodeData {
+  name: string;
+  type: string;
+  status: 'normal' | 'added' | 'removed' | 'changed';
+  changeDetails: string[];
+}
+
+export interface TableNodeData {
+  label: string;
+  status: 'normal' | 'added' | 'removed' | 'changed';
+  columns: ColumnNodeData[];
+}
+
+export interface ViewNodeData {
+  label: string;
+  type: 'view' | 'materialized_view';
+  status: 'normal' | 'added' | 'removed' | 'changed';
+  definition?: string;
+  oldDefinition?: string;
+}
 
 export const useSchemaParser = () => {
-  const parseSchemaToFlow = (rawData: unknown) => {
-    // 1. ВАЛИДАЦИЯ ДАННЫХ
-    const responseData = ApiSnapshotSchema.parse(rawData);
+  const parseSchemaToFlow = (snapshot: SnapshotDetails | null | undefined) => {
+    const nodes: Node<TableNodeData>[] = [];
+    const edges: Edge[] = [];
 
-    const nodes: any[] = [];
-    const edges: any[] = [];
+    if (!snapshot || !snapshot.schema_data) {
+      return { nodes, edges };
+    }
 
-    // Прямое обращение к распакованным данным
-    const diff = responseData.diff_data || {};
-    const tables = responseData.tables || [];
+    const tables = snapshot.schema_data.tables;
+    const diff = snapshot.diff_data || { added_tables: [], removed_tables: [], changed_tables: {} };
 
-    // 2. ФОРМИРОВАНИЕ УЗЛОВ
+    const extractNames = (arr: unknown[] | undefined): string[] => {
+      if (!Array.isArray(arr)) return [];
+      return arr.map((item) => (typeof item === 'string' ? item : item?.name || ''));
+    };
+
     tables.forEach((table) => {
-      let tableStatus = 'normal';
+      let tableStatus: TableNodeData['status'] = 'normal';
       if (diff.added_tables?.includes(table.name)) tableStatus = 'added';
       else if (diff.changed_tables?.[table.name]) tableStatus = 'changed';
 
-      // Хелпер: достает имена из массива строк ИЛИ массива объектов
-      const extractNames = (arr: any[] | undefined) =>
-        arr ? arr.map((item) => (typeof item === 'string' ? item : item.name)) : [];
+      const changes = diff.changed_tables?.[table.name] || {};
+      const addedColNames = extractNames(changes.added_columns);
+      const removedColNames = extractNames(changes.removed_columns);
 
-      const changes = diff.changed_tables?.[table.name];
-      const addedColNames = extractNames(changes?.added_columns);
-      const removedColNames = extractNames(changes?.removed_columns);
+      const processedColumns: ColumnNodeData[] = table.columns.map((col) => {
+        let colStatus: ColumnNodeData['status'] = 'normal';
+        const changeDetails: string[] = [];
 
-      // ... остальной код маппинга колонок и связей остается без изменений
+        if (addedColNames.includes(col.name)) {
+          colStatus = 'added';
+        } else if (changes.changed_columns?.[col.name]) {
+          colStatus = 'changed';
+          const colDiff = changes.changed_columns[col.name];
 
-      const processedColumns = table.columns.map((col) => {
-        let colStatus = 'normal';
-        let changeDetails: string[] = [];
-
-        if (changes) {
-          if (addedColNames.includes(col.name)) {
-            colStatus = 'added';
-          } else if (changes.changed_columns?.[col.name]) {
-            colStatus = 'changed';
-            const colDiff = changes.changed_columns[col.name];
-
-            if (colDiff?.type)
-              changeDetails.push(`Type: ${colDiff.type.old} → ${colDiff.type.new}`);
-            if (colDiff?.nullable !== undefined) {
-              const oldNull = colDiff.nullable.old ? 'NULL' : 'NOT NULL';
-              const newNull = colDiff.nullable.new ? 'NULL' : 'NOT NULL';
-              changeDetails.push(`Nullable: ${oldNull} → ${newNull}`);
-            }
+          if (colDiff?.type) {
+            changeDetails.push(`Type: ${colDiff.type.old} → ${colDiff.type.new}`);
+          }
+          if (colDiff?.nullable !== undefined) {
+            const oldNull = colDiff.nullable.old ? 'NULL' : 'NOT NULL';
+            const newNull = colDiff.nullable.new ? 'NULL' : 'NOT NULL';
+            changeDetails.push(`Nullable: ${oldNull} → ${newNull}`);
           }
         }
         return { ...col, status: colStatus, changeDetails };
       });
 
-      // Добавление удаленных колонок
-      removedColNames.forEach((colName: string) => {
+      removedColNames.forEach((colName) => {
         processedColumns.push({
           name: colName,
           type: 'REMOVED',
@@ -69,7 +87,6 @@ export const useSchemaParser = () => {
         data: { label: table.name, status: tableStatus, columns: processedColumns },
       });
 
-      // 3. ФОРМИРОВАНИЕ СВЯЗЕЙ
       if (table.foreign_keys && table.foreign_keys.length > 0) {
         table.foreign_keys.forEach((fk) => {
           fk.constrained_columns.forEach((sourceCol, index) => {
@@ -91,7 +108,6 @@ export const useSchemaParser = () => {
       }
     });
 
-    // Обработка удаленных таблиц
     if (diff.removed_tables) {
       diff.removed_tables.forEach((tableName: string) => {
         nodes.push({
@@ -103,7 +119,6 @@ export const useSchemaParser = () => {
       });
     }
 
-    // 4. DAGRE ЛЕЙАУТ
     const g = new dagre.graphlib.Graph();
     g.setDefaultEdgeLabel(() => ({}));
     g.setGraph({ rankdir: 'LR', ranksep: 250, nodesep: 60 });
@@ -125,5 +140,81 @@ export const useSchemaParser = () => {
     return { nodes, edges };
   };
 
-  return { parseSchemaToFlow };
+  const parseViewsToFlow = (snapshot: SnapshotDetails | null | undefined) => {
+    const nodes: Node<ViewNodeData>[] = [];
+    const edges: Edge[] = [];
+
+    if (!snapshot || !snapshot.views_data) return { nodes, edges };
+
+    const views = snapshot.views_data.views || [];
+    const matViews = snapshot.views_data.materialized_views || [];
+    const diff = snapshot.views_diff_data || {
+      views: { added: [], removed: [], changed: {} },
+      materialized_views: { added: [], removed: [], changed: {} },
+    };
+
+    const processViewList = (list: any[], diffData: any, type: 'view' | 'materialized_view') => {
+      const safeDiff = diffData || { added: [], removed: [], changed: {} };
+      const addedList = safeDiff.added || [];
+      const changedDict = safeDiff.changed || {};
+      const removedList = safeDiff.removed || [];
+
+      list.forEach((v) => {
+        let status: ViewNodeData['status'] = 'normal';
+        let oldDefinition: string | undefined = undefined;
+
+        if (addedList.find((a: any) => a.name === v.name)) {
+          status = 'added';
+        } else if (changedDict[v.name]) {
+          status = 'changed';
+          oldDefinition = changedDict[v.name].old;
+        }
+
+        nodes.push({
+          id: `view-${v.name}`,
+          type: 'customView',
+          position: { x: 0, y: 0 },
+          data: {
+            label: v.name,
+            status,
+            type,
+            definition: v.definition,
+            oldDefinition,
+          },
+        });
+      });
+
+      // 3. Обработка удаленных элементов
+      removedList.forEach((name: string) => {
+        nodes.push({
+          id: `view-${name}`,
+          type: 'customView',
+          position: { x: 0, y: 0 },
+          data: { label: name, status: 'removed', type },
+        });
+      });
+    };
+
+    processViewList(views, diff.views, 'view');
+    processViewList(matViews, diff.materialized_views, 'materialized_view');
+
+    const g = new dagre.graphlib.Graph();
+    g.setDefaultEdgeLabel(() => ({}));
+    g.setGraph({ rankdir: 'LR', ranksep: 100, nodesep: 60 });
+
+    nodes.forEach((node) => {
+      g.setNode(node.id, { width: 300, height: 100 });
+    });
+
+    dagre.layout(g);
+
+    nodes.forEach((node) => {
+      const dagreNode = g.node(node.id);
+      node.position = { x: dagreNode.x - 150, y: dagreNode.y - 50 };
+    });
+
+    return { nodes, edges };
+  };
+
+  return { parseSchemaToFlow, parseViewsToFlow };
 };
