@@ -9,11 +9,15 @@ class BaseOrmModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class MigrationUploadResponseSchema(BaseModel):
-    status: RabbitTaskStatus
-    project: str
+class MigrationUploadDetailSchema(BaseModel):
     file: str
     revision: str
+    down_revision: str | None
+
+class MigrationUploadResponseSchema(BaseModel):
+    status: RabbitTaskStatus
+    processed_count: int
+    details: list[MigrationUploadDetailSchema]
 
 
 # region Projects
@@ -67,6 +71,7 @@ class LatestSnapshotsResponseSchema(BaseOrmModel):
     revision_id: str
     project_id: int
     project_name: str
+    created_at: dt.datetime
 
 
 class SnapshotByDateResponseSchema(BaseOrmModel):

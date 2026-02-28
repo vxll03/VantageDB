@@ -5,12 +5,12 @@
       "path": ".github"
     },
     {
-      "name": "Compose",
-      "path": "compose"
-    },
-    {
       "name": "Frontend",
       "path": "frontend"
+    },
+    {
+      "name": "Compose",
+      "path": "compose"
     },
     {
       "name": "Backend",

@@ -153,14 +153,10 @@ const registerRules: FormRules = {
   password: createZodRule('password'),
 };
 
-// import { api } from '~/utils/api'; // Здесь будет твой ofetch клиент
-
 const message = useMessage();
 
-// --- 1. Мутация Входа ---
 const { mutate: login, isPending: isLoginPending } = useMutation({
   mutationFn: async (credentials: typeof loginModel.value) => {
-    // Вызов твоего FastAPI. Используем встроенный $fetch для примера
     return await $fetch('http://127.0.0.1:8000/api/v1/auth/login', {
       method: 'POST',
       body: credentials,
@@ -169,15 +165,12 @@ const { mutate: login, isPending: isLoginPending } = useMutation({
   onSuccess: (data) => {
     console.log('Токен получен:', data);
     message.success('Успешный вход!');
-    // TODO: Сохранить токен в Pinia / Cookie и сделать редирект
   },
   onError: (error: any) => {
-    // Перехват 401 Unauthorized или 422 Validation Error от FastAPI
     message.error(error.data?.detail || 'Authorization error');
   },
 });
 
-// --- 2. Мутация Регистрации ---
 const { mutate: register, isPending: isRegisterPending } = useMutation({
   mutationFn: async (userData: typeof registerModel.value) => {
     return await $fetch('http://127.0.0.1:8000/api/v1/auth/register', {
@@ -187,18 +180,17 @@ const { mutate: register, isPending: isRegisterPending } = useMutation({
   },
   onSuccess: () => {
     message.success('Аккаунт создан! Теперь вы можете войти.');
-    activeTab.value = 'login'; // Автоматически переключаем на вкладку логина
+    activeTab.value = 'login';
   },
   onError: (error: any) => {
     message.error(error.data?.detail || 'Registration error');
   },
 });
 
-// --- 3. Обновленные обработчики форм ---
 const handleLogin = async () => {
   await loginFormRef.value?.validate((errors) => {
     if (!errors) {
-      login(loginModel.value); // Передаем данные в мутацию
+      login(loginModel.value);
     }
   });
 };
@@ -206,7 +198,7 @@ const handleLogin = async () => {
 const handleRegister = async () => {
   await registerFormRef.value?.validate((errors) => {
     if (!errors) {
-      register(registerModel.value); // Передаем данные в мутацию
+      register(registerModel.value);
     }
   });
 };

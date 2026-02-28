@@ -1,11 +1,16 @@
 <template>
   <div class="schema-page">
-    <projects-time-line v-model:revision-id="revisionId" @select-revision="selectRevision" />
-    <projects-schema-canvas 
-      v-model:revision-id="revisionId" 
-      v-model:nodes="nodes" 
-      v-model:edges="edges" 
+    <projects-schema-canvas
+    v-model:revision-id="revisionId"
+    v-model:nodes="nodes"
+    v-model:edges="edges"
     />
+    <projects-time-line
+      v-model:set-show="isModalVisible"
+      v-model:revision-id="revisionId"
+      @select-revision="selectRevision"
+    />
+    <projects-create-snapshot-modal v-model:show="isModalVisible" />
   </div>
 </template>
 
@@ -13,6 +18,7 @@
   const nodes = ref<any[]>([]);
   const edges = ref<any[]>([]);
   const revisionId = ref<number | null>(null);
+  const isModalVisible = ref<boolean>(false);
 
   const selectRevision = () => {
     nodes.value = [];

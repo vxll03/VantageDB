@@ -70,7 +70,7 @@
 
 <script setup lang="ts">
   import { ref } from 'vue';
-  import { useProjectMutation } from '~/composables/useProjects';
+  import { useCreateProject } from '~/composables/useProjects';
 
   const show = defineModel<boolean>('show', { default: false });
   const showIconPicker = ref(false);
@@ -108,7 +108,7 @@
     },
   };
 
-  const { mutate: createProject, isPending: isCreating } = useProjectMutation();
+  const { mutate: createProject, isPending: isCreating } = useCreateProject();
 
   const handleCreate = (e: Event) => {
     e.preventDefault();

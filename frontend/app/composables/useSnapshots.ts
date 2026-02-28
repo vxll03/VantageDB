@@ -8,7 +8,7 @@ export const useLatestSnapshotsQuery = (limit: number = 10) => {
     queryFn: async (): Promise<LatestSnapshot[]> => {
       const data = await apiClient(`/snapshots/latest?limit=${limit}`);
       return LatestSnapshotResponseSchema.parse(data);
-    }
+    },
   });
 };
 
@@ -17,12 +17,15 @@ export const useSnapshotTimelineQuery = (projectId: number) => {
     queryKey: ['snapshots', projectId],
     queryFn: async () => await apiClient(`/snapshots/${projectId}`),
   });
-}
+};
 
-export const useSnapshotDetailsQuery = (projectId: number, selectedRevision: Ref<number | null>) => {
+export const useSnapshotDetailsQuery = (
+  projectId: number,
+  selectedRevision: Ref<number | null>,
+) => {
   return useQuery({
     queryKey: ['snapshot-details', projectId, selectedRevision],
     queryFn: async () => await apiClient(`/snapshots/${projectId}/${selectedRevision.value}`),
     enabled: computed(() => !!selectedRevision.value),
   });
-}
+};

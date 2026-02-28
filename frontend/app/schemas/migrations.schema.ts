@@ -3,14 +3,14 @@ import { z } from 'zod';
 export const ColumnSchema = z.object({
   name: z.string(),
   type: z.string(),
-  default: z.string().nullable().optional(),
+  default: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
   nullable: z.boolean().optional(),
 });
 
 export const ForeignKeySchema = z.object({
-  column: z.string(),
-  target_table: z.string(),
-  target_column: z.string(),
+  constrained_columns: z.array(z.string()),
+  referred_table: z.string(),
+  referred_columns: z.array(z.string()),
 });
 
 export const TableSchema = z.object({
@@ -21,8 +21,8 @@ export const TableSchema = z.object({
 });
 
 export const ChangeDetailSchema = z.object({
-  old: z.union([z.string(), z.boolean(), z.null()]),
-  new: z.union([z.string(), z.boolean(), z.null()]),
+  old: z.union([z.string(), z.boolean(), z.number(), z.null()]).optional(),
+  new: z.union([z.string(), z.boolean(), z.number(), z.null()]).optional(),
 });
 
 export const ColumnDiffSchema = z.object({
@@ -32,7 +32,7 @@ export const ColumnDiffSchema = z.object({
 });
 
 export const TableDiffSchema = z.object({
-  added_columns: z.array(z.string()).optional(),
+  added_columns: z.array(ColumnSchema).optional(),
   removed_columns: z.array(z.string()).optional(),
   changed_columns: z.record(z.string(), ColumnDiffSchema).optional(),
 });

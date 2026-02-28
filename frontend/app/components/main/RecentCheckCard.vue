@@ -12,6 +12,7 @@
 
         <span class="divider">|</span>
         <span class="rev-name">Revision: {{ snap.revision_id }}</span>
+        <span class="date"> {{ formatDate(snap.created_at) }} </span>
       </div>
     </div>
 
@@ -34,7 +35,21 @@
     flex-direction: column;
     gap: 12px;
 
+    max-height: 150px;
+    overflow-y: auto;
+    padding-right: 8px;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background-color: $light;
+      border-radius: 4px;
+    }
+
     .check-item {
+      display: flex;
+      align-items: center;
       font-size: $font-m;
       color: $gray;
       padding-bottom: 8px;
@@ -58,6 +73,12 @@
         &:hover {
           color: $accent;
         }
+      }
+
+      .date {
+        margin-left: auto;
+        font-size: 12px;
+        opacity: 0.7;
       }
     }
   }

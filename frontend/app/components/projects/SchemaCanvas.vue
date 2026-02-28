@@ -10,6 +10,7 @@
         fit-view-on-init
         class="db-canvas"
       >
+        <Background :pattern-color="LIGHT" :gap="35" :size="2" />
         <template #node-customTable="{ data }">
           <n-card
             :class="['table-node', `status-${data.status}`]"
@@ -71,17 +72,48 @@
         </template>
 
         <Panel position="bottom-right" class="controls-panel">
-          <n-button-group class="canvas-controls">
-            <n-button quaternary @click="zoomIn">
-              <template #icon><Icon name="ph:magnifying-glass-plus" /></template>
-            </n-button>
-            <n-button quaternary @click="zoomOut">
-              <template #icon><Icon name="ph:magnifying-glass-minus" /></template>
-            </n-button>
-            <n-button quaternary @click="fitView">
-              <template #icon><Icon name="ph:corners-out" /></template>
-            </n-button>
-          </n-button-group>
+          <div class="panel-layout">
+            <n-button-group vertical class="canvas-controls">
+              <n-tooltip placement="left" trigger="hover">
+                <template #trigger>
+                  <n-button quaternary>
+                    <template #icon><Icon name="ph:lightning" /></template>
+                  </n-button>
+                </template>
+                Triggers
+              </n-tooltip>
+
+              <n-tooltip placement="left" trigger="hover">
+                <template #trigger>
+                  <n-button quaternary>
+                    <template #icon><Icon name="ph:eye" /></template>
+                  </n-button>
+                </template>
+                Views
+              </n-tooltip>
+
+              <n-tooltip placement="left" trigger="hover">
+                <template #trigger>
+                  <n-button quaternary>
+                    <template #icon><Icon name="ph:file-code" /></template>
+                  </n-button>
+                </template>
+                Files
+              </n-tooltip>
+            </n-button-group>
+
+            <n-button-group class="canvas-controls">
+              <n-button quaternary @click="zoomOut">
+                <template #icon><Icon name="ph:magnifying-glass-minus" /></template>
+              </n-button>
+              <n-button quaternary @click="zoomIn">
+                <template #icon><Icon name="ph:magnifying-glass-plus" /></template>
+              </n-button>
+              <n-button quaternary @click="fitView">
+                <template #icon><Icon name="ph:corners-out" /></template>
+              </n-button>
+            </n-button-group>
+          </div>
         </Panel>
       </VueFlow>
     </n-spin>
@@ -92,6 +124,7 @@
   import '@vue-flow/core/dist/style.css';
   import '@vue-flow/core/dist/theme-default.css';
   import { VueFlow, Panel, useVueFlow, Handle, Position } from '@vue-flow/core';
+  import { Background } from '@vue-flow/background';
 
   const { parseSchemaToFlow } = useSchemaParser();
   const { zoomIn, zoomOut, fitView, onNodeDrag } = useVueFlow();
@@ -272,6 +305,13 @@
     &.status-changed {
       background-color: rgba(32, 128, 240, 0.15);
     }
+  }
+
+  .panel-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-end;
   }
 
   .canvas-controls {

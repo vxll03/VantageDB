@@ -1,24 +1,18 @@
 <template>
   <div class="dashboard-page">
-    <Header v-model:set-show="isModalVisible" />
-    <CreateProjectModal v-model:show="isModalVisible" />
+    <main-header v-model:set-show="isModalVisible" />
+    <main-create-project-modal v-model:show="isModalVisible" />
 
     <div class="top-grid">
-      <RecentCheckCard />
-      <CheckDiagramCard />
+      <main-recent-check-card />
+      <main-check-diagram-card />
     </div>
 
-    <MainTableCard />
+    <main-database-info-card />
   </div>
 </template>
 
 <script setup lang="ts">
-  import CreateProjectModal from '~/components/main/CreateProjectModal.vue';
-  import Header from '~/components/main/Header.vue';
-  import RecentCheckCard from '~/components/main/RecentCheckCard.vue';
-  import CheckDiagramCard from '~/components/main/CheckDiagramCard.vue';
-  import MainTableCard from '~/components/main/MainTableCard.vue';
-
   const isModalVisible = ref(false);
 </script>
 
@@ -36,6 +30,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 24px;
     flex-shrink: 0;
+    max-height: 30vh;
   }
 
   .data-card {

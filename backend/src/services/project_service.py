@@ -64,6 +64,7 @@ class ProjectService:
                 revision_id=s.revision_id,
                 project_id=s.project_id,
                 project_name=s.project.name,
+                created_at=s.created_at,
             )
             for s in snapshots
         ]

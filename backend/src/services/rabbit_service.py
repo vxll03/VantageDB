@@ -22,26 +22,28 @@ class RabbitService:
             self._connection = await aio_pika.connect_robust(settings.rabbit.URL)
         return self._connection
 
-    async def publish_task(self, project_name: str, revision: str):
+    async def publish_tasks(self, tasks: list[dict]):
         connection = await self._get_connection()
         async with connection.channel() as channel:
             await channel.declare_queue(
                 settings.rabbit.MIGRATION_TASK_QUEUE, durable=True
             )
 
-            payload = {
-                "project": project_name,
-                "target_revision": revision,
-            }
+            for task in tasks:
+                payload = {
+                    "project": task["project_name"],
+                    "target_revision": task["revision"],
+                    "prev_revision": task["down_revision"],
+                }
 
-            await channel.default_exchange.publish(
-                aio_pika.Message(
-                    body=json.dumps(payload).encode(),
-                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                ),
-                routing_key="migration_tasks",
-            )
-        logger.info(f"Task sent for {project_name}")
+                await channel.default_exchange.publish(
+                    aio_pika.Message(
+                        body=json.dumps(payload).encode(),
+                        delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    ),
+                    routing_key="migration_tasks",
+                )
+        logger.info(f"Published {len(tasks)} tasks to queue")
 
     async def consume_results(self):
         connection = await self._get_connection()

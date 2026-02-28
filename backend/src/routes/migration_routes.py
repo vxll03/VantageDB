@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, UploadFile
+from fastapi import APIRouter, UploadFile
 
 from src.dependencies import FileServiceDep, RabbitServiceDep
 from src.schemas.api_schemas import (
@@ -10,22 +10,31 @@ router = APIRouter()
 
 
 @router.post(
-    "/upload_new",
+    "/upload/{project_id}",
     response_model=MigrationUploadResponseSchema,
     status_code=201,
 )
 async def upload_migrations(
-    file: UploadFile,
+    files: list[UploadFile],
     rabbit_srv: RabbitServiceDep,
     migration_srv: FileServiceDep,
-    project_name: str = Query(...),
+    project_id: int,
 ):
-    revision = await migration_srv.prepare_file(project_name=project_name, file=file)
-    await rabbit_srv.publish_task(project_name=project_name, revision=revision)
+    prepared_data = await migration_srv.prepare_files(
+        project_id=project_id, files=files
+    )
+
+    await rabbit_srv.publish_tasks(tasks=prepared_data)
 
     return {
         "status": RabbitTaskStatus.ACCEPTED,
-        "project": project_name,
-        "file": file.filename,
-        "revision": revision,
+        "processed_count": len(prepared_data),
+        "details": [
+            {
+                "file": d["file"],
+                "revision": d["revision"],
+                "down_revision": d["down_revision"],
+            }
+            for d in prepared_data
+        ],
     }

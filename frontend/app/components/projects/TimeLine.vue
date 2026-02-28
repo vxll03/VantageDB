@@ -9,7 +9,7 @@
             :class="['timeline-item', { active: revisionId === snap.id }]"
             @click="selectRevision(snap.id)"
           >
-            <div class="label">{{ snap.revision_id }}</div>
+            <div class="label">{{ snap.revision_id.slice(0, 12) }}{{ snap.revision_id.length > 12 ? '...' : '' }}</div>
             <div class="dot-wrapper">
               <div class="dot"></div>
               <div v-if="index !== snapshots.length - 1" class="line"></div>
@@ -20,6 +20,12 @@
           <div v-if="!snapshots?.length && !isLoadingSnapshots" class="no-data">
             No snapshots found for this project.
           </div>
+          <n-button type="primary" class="create-btn" ghost @click="setShow = true">
+            <template #icon>
+              <Icon name="ph:plus-bold" />
+            </template>
+            Create Snap
+          </n-button>
         </div>
       </n-scrollbar>
     </n-spin>
@@ -33,6 +39,7 @@
 
   const emit = defineEmits(['selectRevision']);
   const revisionId = defineModel<number | null>('revisionId');
+  const setShow = defineModel<boolean>('setShow', { default: false });
 
   const route = useRoute();
   const projectId = route.params.id as string;
@@ -61,7 +68,7 @@
     flex: 0 0 auto;
     padding: 16px 24px;
     background-color: $light-dark;
-    border-bottom: 2px solid $medium;
+    border-top: 2px solid $medium;
   }
 
   .timeline-track {
@@ -140,5 +147,9 @@
   .no-data {
     color: $gray;
     font-size: 0.9rem;
+  }
+
+  .create-btn {
+    margin-left: auto;
   }
 </style>

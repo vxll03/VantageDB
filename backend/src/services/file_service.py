@@ -16,55 +16,88 @@ class FileService:
     def __init__(self, project_srv: ProjectService):
         self.project_srv = project_srv
 
-    async def prepare_file(self, project_name: str, file: UploadFile):
-        if not file.filename:
-            raise HTTPException(422, "filename not found")
+    async def prepare_files(
+        self, project_id: int, files: list[UploadFile]
+    ) -> list[dict]:
+        if not files:
+            raise HTTPException(422, "No files provided")
 
-        if not await self.project_srv.get_project_by_name(project_name):
-            await self.project_srv.create_project(project_name)
+        project = await self.project_srv.get_project_by_id(project_id)
+        if not project:
+            raise HTTPException(404, "Project not found")
 
-        project_dir = settings.SHARED_MIGRATIONS_DIR / project_name / "input"
+        project_dir = settings.SHARED_MIGRATIONS_DIR / project.name / "input"
         project_dir.mkdir(parents=True, exist_ok=True)
 
-        file_path = project_dir / file.filename
+        processed_files = []
 
-        try:
-            with file_path.open("wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-        except Exception as e:
-            logger.error(f"Failed to save file {file.filename}: {e}")
-            raise HTTPException(500, "Could not save migration file") from e
+        for file in files:
+            if not file.filename:
+                continue
 
-        revision = self._extract_revision(file_path)
+            file_path = project_dir / file.filename
+            try:
+                with file_path.open("wb") as buffer:
+                    shutil.copyfileobj(file.file, buffer)
+            except Exception as e:
+                logger.error(f"Failed to save file {file.filename}: {e}")
+                raise HTTPException(500, f"Could not save file {file.filename}") from e
 
-        return revision
+            revision, down_revision = self._extract_revisions(file_path)
+            processed_files.append(
+                {
+                    "file": file.filename,
+                    "revision": revision,
+                    "down_revision": down_revision,
+                    "project_name": project.name,
+                }
+            )
 
-    def _extract_revision(self, file_path: Path) -> str:
+        return processed_files
+
+    def _extract_revisions(self, file_path: Path) -> tuple[str, str | None]:
         try:
             content = file_path.read_text()
-            match = re.search(r"revision\s*[:=]\s*['\"]([^'\"]+)['\"]", content)
-            if match:
-                return match.group(1)
-        except Exception as e:
-            logger.error(f"Failed to parse revision from {file_path}: {e}")
-        raise HTTPException(422, 'Invalid migration file (revision not found)')
+            rev_match = re.search(
+                r"revision\s*(?::\s*[^=]+)?\s*=\s*['\"]([^'\"]+)['\"]", content
+            )
+            down_rev_match = re.search(
+                r"down_revision\s*(?::\s*[^=]+)?\s*=\s*['\"]([^'\"]+)['\"]|down_revision\s*=\s*None",
+                content,
+            )
 
+            if not rev_match:
+                raise HTTPException(
+                    422, f"Invalid migration file {file_path.name} (revision not found)"
+                )
+
+            revision = rev_match.group(1)
+            down_revision = (
+                down_rev_match.group(1)
+                if down_rev_match and down_rev_match.group(1)
+                else None
+            )
+
+            return revision, down_revision
+        except Exception as e:
+            logger.error(f"Failed to parse revisions from {file_path}: {e}")
+            raise HTTPException(422, "Error parsing migration file")
 
     async def process_schema(self, message: IncomingMessageSchema):
         project = await self.project_srv.get_project_by_name(message.project)
         if not project:
-            logger.error(f'Project not found by name: {message.project}')
+            logger.error(f"Project not found by name: {message.project}")
             return
 
         project_dir = settings.SHARED_MIGRATIONS_DIR / project.name / "output"
-        schema = project_dir / f'{message.revision_id}_schema.json'
-        diff = project_dir / f'{message.revision_id}_diff.json'
+        schema = project_dir / f"{message.revision_id}_schema.json"
+        diff = project_dir / f"{message.revision_id}_diff.json"
 
         schema_data, diff_data = None, None
-        with open(schema, 'r', encoding='utf-8') as f:
+        with open(schema, "r", encoding="utf-8") as f:
             schema_data = json.load(f)
         if diff.exists():
-            with open(diff, 'r', encoding='utf-8') as f:
+            with open(diff, "r", encoding="utf-8") as f:
                 diff_data = json.load(f)
 
         await self.project_srv.create_snapshot(
