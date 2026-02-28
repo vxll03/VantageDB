@@ -1,3 +1,26 @@
+class MetaDiff:
+    @staticmethod
+    def compare_lists(old_list: list[dict], new_list: list[dict], key="name") -> dict:
+        old_dict = {item[key]: item for item in old_list}
+        new_dict = {item[key]: item for item in new_list}
+
+        all_keys = set(old_dict.keys()) | set(new_dict.keys())
+        report = {"added": [], "removed": [], "changed": {}}
+
+        for k in all_keys:
+            if k not in old_dict:
+                report["added"].append(new_dict[k])
+            elif k not in new_dict:
+                report["removed"].append(k)
+            else:
+                old_def = old_dict[k].get("definition", "")
+                new_def = new_dict[k].get("definition", "")
+                if old_def != new_def:
+                    report["changed"][k] = {"old": old_def, "new": new_def}
+
+        return report
+
+
 class SchemaDiff:
     def __init__(self, old_schema, new_schema):
         self.old = old_schema
@@ -48,3 +71,22 @@ class SchemaDiff:
             if old_c[attr] != new_c[attr]:
                 changes[attr] = {"old": old_c[attr], "new": new_c[attr]}
         return changes
+
+    @staticmethod
+    def compare_views(old_views, new_views):
+        return {
+            "views": MetaDiff.compare_lists(old_views["views"], new_views["views"]),
+            "materialized_views": MetaDiff.compare_lists(
+                old_views["materialized_views"], new_views["materialized_views"]
+            ),
+        }
+
+    @staticmethod
+    def compare_functions(old_funcs, new_funcs):
+        return MetaDiff.compare_lists(old_funcs["functions"], new_funcs["functions"])
+
+    @staticmethod
+    def compare_triggers(old_triggers, new_triggers):
+        return MetaDiff.compare_lists(
+            old_triggers["triggers"], new_triggers["triggers"]
+        )

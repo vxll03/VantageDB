@@ -32,25 +32,6 @@ class SnapshotOrchestrator:
             await queue.consume(self._start_worker)
             await asyncio.Future()
 
-    async def _send_result(
-        self, project_name: str, revision_id: str, prev_revision_id: str | None
-    ):
-        if not self.connection:
-            return
-        payload = {
-            "project": project_name,
-            "revision_id": revision_id,
-            "prev_revision_id": prev_revision_id,
-        }
-        async with self.connection.channel() as channel:
-            await channel.default_exchange.publish(
-                aio_pika.Message(
-                    body=json.dumps(payload).encode(),
-                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                ),
-                routing_key="task_results",
-            )
-
     async def _start_worker(self, message: AbstractIncomingMessage):
         async with message.process():
             data = json.loads(message.body.decode())
@@ -72,7 +53,7 @@ class SnapshotOrchestrator:
             )
 
             if not result:
-                logger.error('process result is None')
+                logger.error("process result is None")
                 return
             rev_id, prev_rev_id = result
 
@@ -80,4 +61,23 @@ class SnapshotOrchestrator:
                 project_name=project_name,
                 revision_id=rev_id,
                 prev_revision_id=prev_rev_id,
+            )
+
+    async def _send_result(
+        self, project_name: str, revision_id: str, prev_revision_id: str | None
+    ):
+        if not self.connection:
+            return
+        payload = {
+            "project": project_name,
+            "revision_id": revision_id,
+            "prev_revision_id": prev_revision_id,
+        }
+        async with self.connection.channel() as channel:
+            await channel.default_exchange.publish(
+                aio_pika.Message(
+                    body=json.dumps(payload).encode(),
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                ),
+                routing_key="task_results",
             )

@@ -4,7 +4,7 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from loguru import logger
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 
 from alembic import command
 from src.core.config import settings
@@ -60,21 +60,58 @@ class AlembicSnapshotter(BaseSnapshotWorker):
         if down_rev:
             logger.info(f"Incremental migration: {down_rev} -> {current_rev}")
             command.upgrade(cfg, down_rev)
-            old_schema = self._capture_schema(db_url)
-            command.upgrade(cfg, current_rev)
-            new_schema = self._capture_schema(db_url)
+            old_data = self._capture_all_metadata(db_url)
 
-            diff_engine = SchemaDiff(old_schema, new_schema)
-            self._save_json(
-                diff_engine.compare(), project_output_dir / f"{current_rev}_diff.json"
+            command.upgrade(cfg, current_rev)
+            new_data = self._capture_all_metadata(db_url)
+
+            self._generate_and_save_diffs(
+                old_data, new_data, project_output_dir, current_rev
             )
         else:
             logger.info(f"Base migration: {current_rev}")
             command.upgrade(cfg, current_rev)
-            new_schema = self._capture_schema(db_url)
+            new_data = self._capture_all_metadata(db_url)
 
-        self._save_json(new_schema, project_output_dir / f"{current_rev}_schema.json")
+        self._save_all_metadata(new_data, project_output_dir, current_rev)
         return current_rev, down_rev
+
+    def _generate_and_save_diffs(self, old_data, new_data, out_dir: Path, rev: str):
+        diffs = {
+            "diff": SchemaDiff(old_data["schema"], new_data["schema"]).compare(),
+            "views_diff": SchemaDiff.compare_views(
+                old_data["views"], new_data["views"]
+            ),
+            "functions_diff": SchemaDiff.compare_functions(
+                old_data["functions"], new_data["functions"]
+            ),
+            "triggers_diff": SchemaDiff.compare_triggers(
+                old_data["triggers"], new_data["triggers"]
+            ),
+        }
+        for name, data in diffs.items():
+            self._save_json(data, out_dir / f"{rev}_{name}.json")
+
+    def _save_all_metadata(self, data: dict, out_dir: Path, rev: str) -> None:
+        file_mappings = {
+            "schema": f"{rev}_schema.json",
+            "views": f"{rev}_views.json",
+            "functions": f"{rev}_functions.json",
+            "triggers": f"{rev}_triggers.json",
+        }
+
+        for key, filename in file_mappings.items():
+            if key in data:
+                file_path = out_dir / filename
+                self._save_json(data[key], file_path)
+
+    def _capture_all_metadata(self, db_url: str) -> dict:
+        return {
+            "schema": self._capture_schema(db_url),
+            "views": self._capture_views(db_url),
+            "functions": self._capture_functions(db_url),
+            "triggers": self._capture_triggers(db_url),
+        }
 
     def _capture_schema(self, db_url: str):
         engine = create_engine(db_url)
@@ -110,3 +147,62 @@ class AlembicSnapshotter(BaseSnapshotWorker):
                 }
             )
         return snapshot
+
+    def _capture_views(self, db_url: str) -> dict:
+        engine = create_engine(db_url)
+        views = {"views": [], "materialized_views": []}
+        with engine.connect() as conn:
+            res = conn.execute(
+                text("""
+                SELECT table_name, view_definition
+                FROM information_schema.views
+                WHERE table_schema = 'public'
+            """)
+            )
+            views["views"] = [{"name": row[0], "definition": row[1]} for row in res]
+
+            res = conn.execute(
+                text("""
+                SELECT matviewname, definition
+                FROM pg_matviews
+                WHERE schemaname = 'public'
+            """)
+            )
+            views["materialized_views"] = [
+                {"name": row[0], "definition": row[1]} for row in res
+            ]
+        return views
+
+    def _capture_functions(self, db_url: str) -> dict:
+        engine = create_engine(db_url)
+        with engine.connect() as conn:
+            res = conn.execute(
+                text("""
+                SELECT proname, pg_get_functiondef(oid) as def, pg_get_function_identity_arguments(oid) as args
+                FROM pg_proc
+                WHERE pronamespace = 'public'::regnamespace
+            """)
+            )
+            return {
+                "functions": [
+                    {"name": f"{row[0]}({row[2]})", "definition": row[1]} for row in res
+                ]
+            }
+
+    def _capture_triggers(self, db_url: str) -> dict:
+        engine = create_engine(db_url)
+        with engine.connect() as conn:
+            res = conn.execute(
+                text("""
+                SELECT tgname, relname, pg_get_triggerdef(pg_trigger.oid)
+                FROM pg_trigger
+                JOIN pg_class ON tgrelid = pg_class.oid
+                WHERE relnamespace = 'public'::regnamespace AND tgisinternal = false
+            """)
+            )
+            return {
+                "triggers": [
+                    {"name": row[0], "table": row[1], "definition": row[2]}
+                    for row in res
+                ]
+            }
