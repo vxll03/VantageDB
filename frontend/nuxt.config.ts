@@ -4,6 +4,18 @@ export default defineNuxtConfig({
   ssr: false,
 
   compatibilityDate: '2025-07-15',
+
+  app: {
+    head: {
+      title: 'VantageDB',
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      ],
+      meta: [
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+      ]
+    }
+  },
   
   runtimeConfig: {
     public: {
