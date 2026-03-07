@@ -1,9 +1,9 @@
 <template>
   <div class="schema-page">
     <projects-schema-canvas
-    v-model:revision-id="revisionId"
-    v-model:nodes="nodes"
-    v-model:edges="edges"
+      v-model:revision-id="revisionId"
+      v-model:nodes="nodes"
+      v-model:edges="edges"
     />
     <projects-time-line
       v-model:set-show="isModalVisible"

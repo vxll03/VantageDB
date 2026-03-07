@@ -8,38 +8,28 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'VantageDB',
-      link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
-      ],
-      meta: [
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
-      ]
-    }
+      link: [{ rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }],
+      meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
+    },
   },
-  
+
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.API_BASE_URL,
     },
   },
-  
-  modules: [
-    '@bg-dev/nuxt-naiveui',
-    '@vueuse/nuxt',
-    '@pinia/nuxt',
-    '@nuxt/eslint',
-    '@nuxt/icon',
-  ],
-  
+
+  modules: ['@bg-dev/nuxt-naiveui', '@vueuse/nuxt', '@pinia/nuxt', '@nuxt/eslint', '@nuxt/icon'],
+
   eslint: {
     config: {
-      stylistic: false, 
+      stylistic: false,
     },
   },
 
   devtools: { enabled: true },
-  
-   css: ['~/assets/styles/main.scss'],
+
+  css: ['~/assets/styles/main.scss'],
 
   alias: {
     '@styles': fileURLToPath(new URL('./assets/styles', import.meta.url)),
@@ -69,7 +59,7 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
-    typeCheck: process.env.NODE_ENV === 'production', 
+    typeCheck: process.env.NODE_ENV === 'production',
   },
 
   naiveui: {

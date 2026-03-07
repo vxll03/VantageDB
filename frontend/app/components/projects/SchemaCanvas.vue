@@ -159,14 +159,14 @@
         <Panel position="bottom-right" class="controls-panel">
           <div class="panel-layout">
             <n-button-group vertical class="canvas-controls">
-                <n-button
-                  :type="canvasMode === 'views' ? 'primary' : 'default'"
-                  quaternary
-                  @click="canvasMode = 'views'"
-                >
-                  <template #icon><Icon name="ph:eye" /></template>
-                  Views
-                  </n-button>
+              <n-button
+                :type="canvasMode === 'views' ? 'primary' : 'default'"
+                quaternary
+                @click="canvasMode = 'views'"
+              >
+                <template #icon><Icon name="ph:eye" /></template>
+                Views
+              </n-button>
             </n-button-group>
 
             <n-button-group class="canvas-controls">
